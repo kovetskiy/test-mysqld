@@ -17,7 +17,14 @@ func TestOptions(t *testing.T) {
 	if !assert.NoError(t, err, "NewMysqld should succeed") {
 		return
 	}
-	dsn := mysqld.Datasource("mysql", "root", "localhost", 0, WithParseTime(true), WithMultiStatements(true))
+	dsn := mysqld.Datasource(
+		"mysql",
+		"root",
+		"localhost",
+		0,
+		WithParseTime(true),
+		WithMultiStatements(true),
+	)
 	if !assert.Regexp(t, "parseTime=true", dsn, "dsn matches expected") {
 		return
 	}

@@ -67,7 +67,10 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 	if err != nil && fi.Mode()&os.ModeSymlink == os.ModeSymlink {
 		resolved, err := os.Readlink(config.BaseDir)
 		if err != nil {
-			return nil, errors.Wrap(err, `failed to readlink for config.BaseDir`)
+			return nil, errors.Wrap(
+				err,
+				`failed to readlink for config.BaseDir`,
+			)
 		}
 		config.BaseDir = resolved
 	}
@@ -92,7 +95,10 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 		if config.Port <= 0 {
 			p, err := tcputil.EmptyPort()
 			if err != nil {
-				return nil, errors.Wrap(err, `could not find a temporary port to bind to`)
+				return nil, errors.Wrap(
+					err,
+					`could not find a temporary port to bind to`,
+				)
 			}
 			config.Port = p
 		}
@@ -116,12 +122,19 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 	// `mysqld --initialize-insecure` should be used.
 	out, err := exec.Command(config.Mysqld, "--help", "--verbose").Output()
 	if err != nil {
-		return nil, errors.Wrap(err, `failed to execute 'mysqld --help --verbose'`)
+		return nil, errors.Wrap(
+			err,
+			`failed to execute 'mysqld --help --verbose'`,
+		)
 	}
-	if !strings.Contains(string(out), "--initialize-insecure") && config.MysqlInstallDb == "" {
+	if !strings.Contains(string(out), "--initialize-insecure") &&
+		config.MysqlInstallDb == "" {
 		fullpath, err := exec.LookPath("mysql_install_db")
 		if err != nil {
-			return nil, errors.Wrap(err, `could not find mysql_install_db in path`)
+			return nil, errors.Wrap(
+				err,
+				`could not find mysql_install_db in path`,
+			)
 		}
 		config.MysqlInstallDb = fullpath
 	}
@@ -136,7 +149,10 @@ func NewMysqld(config *MysqldConfig) (*TestMysqld, error) {
 
 	if config.AutoStart > 0 {
 		if err := mysqld.AssertNotRunning(); err != nil {
-			return nil, errors.Wrap(err, `could not detect mysqld to be running`)
+			return nil, errors.Wrap(
+				err,
+				`could not detect mysqld to be running`,
+			)
 		}
 
 		if config.AutoStart > 1 {
@@ -171,7 +187,10 @@ func (m *TestMysqld) AssertNotRunning() error {
 			return errors.Errorf("mysqld is already running (%s)", pidfile)
 		}
 		if !os.IsNotExist(err) {
-			return errors.Wrap(err, `invalid error while checking for mysqld pid file`)
+			return errors.Wrap(
+				err,
+				`invalid error while checking for mysqld pid file`,
+			)
 		}
 	}
 	return nil
@@ -196,13 +215,19 @@ func (m *TestMysqld) Setup() error {
 	// so don't copy here and do after setup db.
 	if config.MysqlInstallDb != "" && config.CopyDataFrom != "" {
 		if err := Dircopy(config.CopyDataFrom, config.DataDir); err != nil {
-			return errors.Wrap(err, `failed to copy data from config.CopyDataFrom`)
+			return errors.Wrap(
+				err,
+				`failed to copy data from config.CopyDataFrom`,
+			)
 		}
 	}
 
 	// XXX We should probably check for return values here...
 	var buf bytes.Buffer
 	buf.WriteString("[mysqld]\n")
+	if config.SkipGrantTables {
+		buf.WriteString("skip-grant-tables\n")
+	}
 	fmt.Fprintf(&buf, "datadir=%s\n", config.DataDir)
 	fmt.Fprintf(&buf, "pid-file=%s\n", config.PidFile)
 	if config.SkipNetworking {
@@ -237,7 +262,10 @@ func (m *TestMysqld) Setup() error {
 			if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
 				resolved, err := os.Readlink(config.MysqlInstallDb)
 				if err != nil {
-					return errors.Wrap(err, `failed to readlink config.MysqlInstallDb`)
+					return errors.Wrap(
+						err,
+						`failed to readlink config.MysqlInstallDb`,
+					)
 				}
 
 				if !filepath.IsAbs(resolved) {
@@ -258,7 +286,10 @@ func (m *TestMysqld) Setup() error {
 			}
 
 			mysqlBaseDir = filepath.Dir(filepath.Dir(mysqlBaseDir))
-			setupArgs = append(setupArgs, fmt.Sprintf("--basedir=%s", mysqlBaseDir))
+			setupArgs = append(
+				setupArgs,
+				fmt.Sprintf("--basedir=%s", mysqlBaseDir),
+			)
 		} else {
 			setupCmd = config.Mysqld
 			setupArgs = append(setupArgs, "--initialize-insecure")
@@ -268,7 +299,11 @@ func (m *TestMysqld) Setup() error {
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			cmdName := setupCmd + " " + strings.Join(setupArgs, " ")
-			return fmt.Errorf("error: *** [%s] failed ***\n%s\n", cmdName, output)
+			return fmt.Errorf(
+				"error: *** [%s] failed ***\n%s\n",
+				cmdName,
+				output,
+			)
 		}
 	}
 
@@ -351,7 +386,9 @@ func (m *TestMysqld) Start() error {
 			if proc := cmd.Process; proc != nil {
 				proc.Kill()
 			}
-			return errors.New("error: timeout reached before we could connect to database")
+			return errors.New(
+				"error: timeout reached before we could connect to database",
+			)
 		case <-conntick.C:
 			db, err := sql.Open("mysql", dsn)
 			if err != nil {
@@ -380,7 +417,9 @@ func (m *TestMysqld) Start() error {
 			return nil
 		}
 	}
-	return errors.New("error: Could not connect to database. Server failed to start?")
+	return errors.New(
+		"error: Could not connect to database. Server failed to start?",
+	)
 }
 
 // ReadLog reads the output log file specified by LogFile and returns its content
@@ -536,7 +575,13 @@ func (m *TestMysqld) DSN(options ...DatasourceOption) string {
 
 // Datasource is a DEPRECATED method to create a datasource string
 // that can be passed to sql.Open(). Please consider using `DSN` instead
-func (m *TestMysqld) Datasource(dbname string, user string, pass string, port int, options ...DatasourceOption) string {
+func (m *TestMysqld) Datasource(
+	dbname string,
+	user string,
+	pass string,
+	port int,
+	options ...DatasourceOption,
+) string {
 	if user != "" {
 		options = append(options, WithUser(user))
 	}
@@ -569,49 +614,53 @@ func (m *TestMysqld) Stop() {
 
 // Dircopy recursively copies directories and files
 func Dircopy(from string, to string) error {
-	return filepath.Walk(from, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
+	return filepath.Walk(
+		from,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
 
-		relpath, err := filepath.Rel(from, path)
-		if relpath == "." {
+			relpath, err := filepath.Rel(from, path)
+			if relpath == "." {
+				return nil
+			}
+
+			destpath := filepath.Join(to, relpath)
+
+			if info.IsDir() {
+				return os.Mkdir(destpath, info.Mode())
+			}
+
+			var src, dest *os.File
+			src, err = os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer src.Close()
+
+			flags := os.O_WRONLY | os.O_CREATE
+			dest, err = os.OpenFile(destpath, flags, info.Mode())
+			if err != nil {
+				return err
+			}
+			defer dest.Close()
+
+			_, err = io.Copy(dest, src)
+			if err != nil {
+				return err
+			}
+
 			return nil
-		}
-
-		destpath := filepath.Join(to, relpath)
-
-		if info.IsDir() {
-			return os.Mkdir(destpath, info.Mode())
-		}
-
-		var src, dest *os.File
-		src, err = os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer src.Close()
-
-		flags := os.O_WRONLY | os.O_CREATE
-		dest, err = os.OpenFile(destpath, flags, info.Mode())
-		if err != nil {
-			return err
-		}
-		defer dest.Close()
-
-		_, err = io.Copy(dest, src)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
+		},
+	)
 }
 
 var MysqlSearchPaths = []string{
 	".",
 	filepath.FromSlash("/usr/local/mysql/bin"),
 }
+
 var MysqldSearchDirs = []string{
 	"bin", "libexec", "sbin",
 }
